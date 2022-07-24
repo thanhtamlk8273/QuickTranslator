@@ -7,25 +7,53 @@
 #include "unicode/ucnv.h"
 #include "unicode/ustdio.h"
 #include "unicode/ucsdet.h"
+#include "unicode/schriter.h"
 
 #include "Dictionary.h"
 #include <map>
+#include <iostream>
 
-static const std::map<UChar32, UChar> punctationTable = {
-    {u'，', u','},
-    {u'。', u'.'},
-    {u'“', u'\"'},
-    {u'”', u'\"'},
-    {u'！', u'!'},
-    {u'？', u'?'},
-    {u'【', u'['},
-    {u'】', u']'}
-};
+namespace {
+    static const std::map<UChar32, UChar32> punctationTable = {
+        {u'，', u','},
+        {u'。', u'.'},
+        {u'“', u'\"'},
+        {u'”', u'\"'},
+        {u'！', u'!'},
+        {u'？', u'?'},
+        {u'【', u'['},
+        {u'】', u']'}
+    };
 
-void appendAString(icu::UnicodeString& toBeAppended, icu::UnicodeString ExtPart)
+    UChar32 getPunc(const UChar32 punc)
+    {
+        UChar32 replacement = punc;
+        auto result = punctationTable.find(punc);
+        if (result != punctationTable.end())
+        {
+            replacement = (*result).second;
+        }
+        return replacement;
+    };
+
+    void appendAString(icu::UnicodeString& toBeAppended, icu::UnicodeString ExtPart)
+    {
+        auto additionalWS = (!ExtPart.isEmpty() ? u" " : u"");
+        toBeAppended += additionalWS + ExtPart;
+    }
+}
+
+icu::UnicodeString Translator::getLatinString(icu::UnicodeString&& s)
 {
-    auto additionalWS = (!ExtPart.isEmpty() ? u" " : u"");
-    toBeAppended += additionalWS + ExtPart;
+    icu::UnicodeString result;
+    icu::StringCharacterIterator it(s);
+    for(it.setToStart(); it.hasNext();)
+    {
+        UChar32 c=it.next32PostInc();
+        if(ublock_getCode(c) != UBLOCK_BASIC_LATIN) break;
+        result += c;
+    }
+    return result;
 }
 
 icu::UnicodeString Translator::translateALine(icu::UnicodeString& s)
@@ -38,13 +66,11 @@ icu::UnicodeString Translator::translateALine(icu::UnicodeString& s)
         int step = 1;
         icu::UnicodeString temp;
         int tmp_end = (vp_dic->getMaxLength() < (s_length - i)) ? (i + vp_dic->getMaxLength()) : s_length;
-        //printUnicodeString(outFile, icu::UnicodeString(u" ") + cn.char32At(i) + icu::UnicodeString(u"\n"));
         icu::UnicodeString sub_cn;
         int j;
         for (j = tmp_end; j > 1; --j)
         {
-            s.extract(i, j, sub_cn);
-            //int sub_cn_length = j - i;
+            sub_cn = s.tempSubString(i, j);
             // Translating using Names
             temp = names_dic->getTranslated(sub_cn);
             if (temp != sub_cn)
@@ -57,7 +83,6 @@ icu::UnicodeString Translator::translateALine(icu::UnicodeString& s)
             temp = vp_dic->getTranslated(sub_cn);
             if (temp != sub_cn)
             {
-                //printUnicodeString(outFile, sub_cn + icu::UnicodeString(u" ") + temp + icu::UnicodeString(u"\n"));
                 appendAString(viet, temp);
                 step = sub_cn.length();
                 break;
@@ -70,7 +95,6 @@ icu::UnicodeString Translator::translateALine(icu::UnicodeString& s)
             if (u_isxdigit(c))
             {
                 UChar last_c = s.char32At(i - 1);
-                //printUnicodeString(outFile, icu::UnicodeString(u" ") + cn.char32At(i) + icu::UnicodeString(u"\n"));
                 icu::UnicodeString ws;
                 if (   (i - 1) >= 0
                     && (u_isspace(last_c) || !u_isxdigit(last_c) || u_isspace(last_c))) ws = u" ";
@@ -78,7 +102,6 @@ icu::UnicodeString Translator::translateALine(icu::UnicodeString& s)
             }
             else if (u_isalnum(c))
             {
-                //printUnicodeString(outFile, icu::UnicodeString(u" ") + cn.char32At(i) + icu::UnicodeString(u"\n"));
                 sub_cn = icu::UnicodeString(c);
                 temp = vp_dic->getTranslated(sub_cn);
                 if (temp == sub_cn) temp = hanviets_dic->getTranslated(c);
@@ -94,7 +117,6 @@ icu::UnicodeString Translator::translateALine(icu::UnicodeString& s)
                 else
                 {
                     viet += c;
-                    //printUnicodeString(outFile, icu::UnicodeString(u" ") + cn.char32At(i) + icu::UnicodeString(u"\n"));
                 }
             }
         }
@@ -113,13 +135,11 @@ std::vector<std::pair<icu::UnicodeString, icu::UnicodeString>> Translator::Trans
         int step = 1;
         icu::UnicodeString temp;
         int tmp_end = (vp_dic->getMaxLength() < (s.countChar32() - i)) ? (i + vp_dic->getMaxLength()) : s_length;
-        //printUnicodeString(outFile, icu::UnicodeString(u" ") + cn.char32At(i) + icu::UnicodeString(u"\n"));
         icu::UnicodeString sub_cn;
         int j;
         for (j = tmp_end; j > 1; --j)
         {
-            s.extract(i, j, sub_cn);
-            //printUnicodeString(outfile, sub_s + icu::UnicodeString(u"\n"));
+            sub_cn = s.tempSubString(i, j);
             // Translating using Names
             temp = names_dic->getTranslated(sub_cn);
             if (temp != sub_cn)
@@ -132,7 +152,6 @@ std::vector<std::pair<icu::UnicodeString, icu::UnicodeString>> Translator::Trans
             temp = vp_dic->getTranslated(sub_cn);
             if (temp != sub_cn)
             {
-                //printUnicodeString(outFile, sub_cn + icu::UnicodeString(u" ") + temp + icu::UnicodeString(u"\n"));
                 result.emplace_back(std::make_pair(temp, sub_cn));
                 step = sub_cn.length();
                 break;
@@ -142,31 +161,37 @@ std::vector<std::pair<icu::UnicodeString, icu::UnicodeString>> Translator::Trans
         if (j == 1)
         {
             UChar c = s.char32At(i);
-            if (u_isxdigit(c))
+            if (ublock_getCode(c) == UBLOCK_BASIC_LATIN)
             {
-                //printUnicodeString(outFile, icu::UnicodeString(u" ") + cn.char32At(i) + icu::UnicodeString(u"\n"));
-                result.emplace_back(std::make_pair(s.char32At(i), c));
+                icu::UnicodeString latinString = getLatinString(s.tempSubString(i, tmp_end));
+                result.emplace_back(std::make_pair(latinString, latinString));
+                step = latinString.length();
             }
             else if (u_isalnum(c))
             {
-                //printUnicodeString(outFile, icu::UnicodeString(u" ") + cn.char32At(i) + icu::UnicodeString(u"\n"));
                 sub_cn = icu::UnicodeString(c);
                 temp = vp_dic->getTranslated(sub_cn);
                 if (temp == sub_cn) temp = hanviets_dic->getTranslated(c);
                 result.emplace_back(std::make_pair(temp, c));
             }
-            else
+            else if(u_ispunct(c))
             {
-                auto new_punc = punctationTable.find(c);
-                if (new_punc != punctationTable.end())
+                /* With punctation, we will find its equivalent in punctationTable
+                 * Then append it to the last transaltion unit if there is one
+                 * Otherwise, make it a new unit */
+                if(result.empty() == false)
                 {
-                    result.emplace_back(std::make_pair((*new_punc).second, c));
+                    result.back().first.append(getPunc(c));
+                    result.back().second.append(getPunc(c));
                 }
                 else
                 {
-                    result.emplace_back(std::make_pair(s.char32At(i), c));
-                    //printUnicodeString(outFile, icu::UnicodeString(u" ") + cn.char32At(i) + icu::UnicodeString(u"\n"));
+                    result.emplace_back(std::make_pair(getPunc(c), c));
                 }
+            }
+            else
+            {
+                result.emplace_back(std::make_pair(c, c));
             }
         }
         i = i + (step >= 0 ? step : 1);

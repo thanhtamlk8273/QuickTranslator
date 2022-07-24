@@ -29,7 +29,7 @@ private:
 	std::unordered_map<int, int> length_availability;
 public:
 	Dictionary(): log_id(-1), max_len(0), min_len(100) {};
-	bool loadFromFile(std::string file_name);
+    bool loadFromFile(const std::string& file_name);
 	icu::UnicodeString getTranslated(icu::UnicodeString text);
 	int getMaxLength();
 	int getMinLength();

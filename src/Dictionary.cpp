@@ -1,12 +1,12 @@
 #include "Dictionary.h"
 #include <string>
+#include <string_view>
 #include <iostream>
 #include <algorithm>
 #include <cstdio>
+#include <fmt/core.h>
 
 namespace {
-    bool isInitialized = false;
-    std::ofstream log_file;
     std::vector<std::string> log_ids;
     enum class LogLevel {
         LOG_INFO = 0,
@@ -23,40 +23,30 @@ namespace {
     }
 
     template<class... T>
-    void log(int id, LogLevel level, std::string fmt, T... args)
+    void log(int id, LogLevel level, const std::string& fmt, T... args)
     {
         if (id > (static_cast<int>(log_ids.size() - 1))) return;
-//        char buffer[100];
-//        int n = snprintf(buffer, 100, (std::string(expandLogLevel(level)) + std::string(log_ids[id]) + fmt + "\n").c_str(), args...);
-//        if (n > 99 || n < 0) return;
-//        buffer[n] = '\0';
-//        log_file.write(buffer, n);
-//        log_file.flush();
-        std::cout << std::string(expandLogLevel(level)) << std::string(log_ids[id]) << fmt << "\n";
+        std::string log_line = fmt::format(fmt + "\n", args...);
+        std::cout << std::string(expandLogLevel(level)) << log_ids[id] << log_line;
     }
 
     int registerLogId(const std::string& log_id)
     {
-        if (!isInitialized)
-        {
-            log_file = std::ofstream("dictionaries_log.txt", std::ofstream::binary);
-            isInitialized = true;
-        }
         log_ids.emplace_back(std::string("[") + log_id + std::string("]"));
-        log(log_ids.size() - 1, LogLevel::LOG_INFO, "Register log ID <%s>", log_id.c_str());
+        log(log_ids.size() - 1, LogLevel::LOG_INFO, "Register log ID {}", log_id);
         return (log_ids.size() - 1);
     }
 }
 
-bool Dictionary::loadFromFile(std::string _file_name)
+bool Dictionary::loadFromFile(const std::string& _file_name)
 {
     file_name = _file_name;
     log_id = registerLogId(file_name);
-    log(log_id, LogLevel::LOG_INFO, "Start to load records from %s", file_name.c_str());
+    log(log_id, LogLevel::LOG_INFO, "Start to load records from {}", file_name);
     std::ifstream dic_file = std::ifstream(file_name, std::ifstream::binary);
     if (!dic_file.is_open())
     {
-        log(log_id, LogLevel::LOG_ERROR, "Failed to open %s", file_name.c_str());
+        log(log_id, LogLevel::LOG_ERROR, "Unable to open {}", file_name);
         return false;
     }
     std::string line;
@@ -67,8 +57,8 @@ bool Dictionary::loadFromFile(std::string _file_name)
         auto index = unicode_line.indexOf(u"=");
         auto end_index = (unicode_line.indexOf(u"/") != -1) ? unicode_line.indexOf(u"/") : unicode_line.countChar32();
         if (index == -1) continue;
-        icu::UnicodeString first_part; unicode_line.extract(0, index, first_part);
-        icu::UnicodeString second_part; unicode_line.extract(index+1, end_index - (index + 1), second_part);
+        icu::UnicodeString first_part = unicode_line.tempSubString(0, index);
+        icu::UnicodeString second_part = unicode_line.tempSubString(index+1, end_index - (index + 1));
         if (first_part.trim().isEmpty()) continue;
         /* Add new record */
         auto emplace_result = records.try_emplace(first_part.trim(), second_part.trim());
@@ -78,10 +68,13 @@ bool Dictionary::loadFromFile(std::string _file_name)
             ++length_availability[first_part.length()];
         }
     }
-    auto result = std::minmax_element(length_list.begin(), length_list.end());
-    min_len = *(result.first);
-    max_len = *(result.second);
-    log(log_id, LogLevel::LOG_INFO, "%u records loaded", records.size());
+    if(length_list.empty() == false)
+    {
+        auto result = std::minmax_element(length_list.begin(), length_list.end());
+        min_len = *(result.first);
+        max_len = *(result.second);
+    }
+    log(log_id, LogLevel::LOG_INFO, "{} records loaded", records.size());
     dic_file.close();
     return true;
 }
@@ -128,7 +121,7 @@ void Dictionary::addNewRecord(icu::UnicodeString cn, icu::UnicodeString vn)
     ++length_availability[first_part.length()];
     if (first_part.length() > max_len) max_len = first_part.length();
     if (first_part.length() < min_len) min_len = first_part.length();
-    log(log_id, LogLevel::LOG_INFO, "new record <%s> -> <%s> added", s1.c_str(), s2.c_str());
+    log(log_id, LogLevel::LOG_INFO, "new record {} -> {} added", s1, s2);
 }
 
 void Dictionary::delRecord(icu::UnicodeString cn)
@@ -146,13 +139,16 @@ void Dictionary::delRecord(icu::UnicodeString cn)
     {
         length_list.erase(first_part.length());
         /* A length has been deleted from length_list. Re-calculate min and max is necessary */
-        auto result = std::minmax_element(length_list.begin(), length_list.end());
-        min_len = *(result.first);
-        max_len = *(result.second);
+        if(length_list.empty() == false)
+        {
+            auto result = std::minmax_element(length_list.begin(), length_list.end());
+            min_len = *(result.first);
+            max_len = *(result.second);
+        }
     }
     std::string s;
     cn.toUTF8String(s);
-    log(log_id, LogLevel::LOG_INFO, "record <%s> deleted", s.c_str());
+    log(log_id, LogLevel::LOG_INFO, "record {} deleted", s);
 }
 
 void Dictionary::update()
@@ -171,6 +167,6 @@ void Dictionary::update()
     }
     dic_file.write(data.c_str(), data.length());
     dic_file.close();
-    log(log_id, LogLevel::LOG_INFO, "%u records was written to file", count);
+    log(log_id, LogLevel::LOG_INFO, "{} records was written to file", count);
 }
 

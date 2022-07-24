@@ -1,6 +1,7 @@
 #include <QtWidgets/QApplication>
 #include <QtWidgets>
 #include <QObject>
+#include <iostream>
 
 #include "Translator.h"
 #include "MyTextEdit.h"
@@ -38,11 +39,11 @@ int main(int argc, char* argv[])
     window.resize(800, 600);
 
     /* Debug QDialog */
-    ddialog = new QDialog();
-    QHBoxLayout* ddialog_layout = new QHBoxLayout();
-    ddialog_layout->addWidget(new QTextEdit());
-    ddialog->setLayout(ddialog_layout);
-    ddialog->show();
+//    ddialog = new QDialog();
+//    QHBoxLayout* ddialog_layout = new QHBoxLayout();
+//    ddialog_layout->addWidget(new QTextEdit());
+//    ddialog->setLayout(ddialog_layout);
+//    ddialog->show();
 
     QVBoxLayout* layout = new QVBoxLayout();
 

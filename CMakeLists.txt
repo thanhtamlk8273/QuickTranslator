@@ -18,6 +18,7 @@ find_package(ICU 70.0 COMPONENTS uc i18n  REQUIRED)
 
 include_directories(
     src
+    src/fmt/include
 )
 
 set (SRCS
@@ -31,12 +32,13 @@ set (SRCS
     src/Translator.h
 )
 
-
 add_executable(${CMAKE_PROJECT_NAME} ${SRCS})
 
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -Wall -Werror)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ICU::uc ICU::i18n)
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/src/fmt/libfmt.a)
+
 
 FILE(COPY src/VietPhrase.txt DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 FILE(COPY src/Names.txt DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
