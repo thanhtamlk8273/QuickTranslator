@@ -91,10 +91,10 @@ icu::UnicodeString Translator::translateALine(icu::UnicodeString& s)
         /* No substring matches? */
         if (j == 1)
         {
-            UChar c = s.char32At(i);
+            UChar c = s.charAt(i);
             if (u_isxdigit(c))
             {
-                UChar last_c = s.char32At(i - 1);
+                UChar last_c = s.charAt(i - 1);
                 icu::UnicodeString ws;
                 if (   (i - 1) >= 0
                     && (u_isspace(last_c) || !u_isxdigit(last_c) || u_isspace(last_c))) ws = u" ";
@@ -135,32 +135,43 @@ std::vector<std::pair<icu::UnicodeString, icu::UnicodeString>> Translator::Trans
         int step = 1;
         icu::UnicodeString temp;
         int tmp_end = (vp_dic->getMaxLength() < (s.countChar32() - i)) ? (i + vp_dic->getMaxLength()) : s_length;
+        bool noMatchInNames = !(names_dic->isThereARecordStartWith(s.charAt(i)));
+        bool noMatchInVP = !(vp_dic->isThereARecordStartWith(s.charAt(i)));
         icu::UnicodeString sub_cn;
-        int j;
-        for (j = tmp_end; j > 1; --j)
+        int j = 1;
+        if(!noMatchInNames && !noMatchInVP)
         {
-            sub_cn = s.tempSubString(i, j);
-            // Translating using Names
-            temp = names_dic->getTranslated(sub_cn);
-            if (temp != sub_cn)
+            for (j = tmp_end; j > 1; --j)
             {
-                result.emplace_back(std::make_pair(temp, sub_cn));
-                step = sub_cn.length();
-                break;
-            }
-            // Translating using VP
-            temp = vp_dic->getTranslated(sub_cn);
-            if (temp != sub_cn)
-            {
-                result.emplace_back(std::make_pair(temp, sub_cn));
-                step = sub_cn.length();
-                break;
+                sub_cn = s.tempSubString(i, j);
+                // Translating using Names
+                if(!noMatchInNames)
+                {
+                    temp = names_dic->getTranslated(sub_cn);
+                    if (temp != sub_cn)
+                    {
+                        result.emplace_back(std::make_pair(temp, sub_cn));
+                        step = sub_cn.length();
+                        break;
+                    }
+                }
+                // Translating using VP
+                if(!noMatchInVP)
+                {
+                    temp = vp_dic->getTranslated(sub_cn);
+                    if (temp != sub_cn)
+                    {
+                        result.emplace_back(std::make_pair(temp, sub_cn));
+                        step = sub_cn.length();
+                        break;
+                    }
+                }
             }
         }
         /* No substring matches? */
         if (j == 1)
         {
-            UChar c = s.char32At(i);
+            UChar c = s.charAt(i);
             if (ublock_getCode(c) == UBLOCK_BASIC_LATIN)
             {
                 icu::UnicodeString latinString = getLatinString(s.tempSubString(i, tmp_end));

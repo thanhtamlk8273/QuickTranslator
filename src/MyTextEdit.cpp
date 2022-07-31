@@ -1,5 +1,7 @@
 #include "MyTextEdit.h"
 #include <algorithm>
+#include <chrono>
+#include <iostream>
 
 void writeToDebugDialog(const QString& debug_log);
 using TChunk = std::pair<icu::UnicodeString, icu::UnicodeString>;
@@ -165,6 +167,7 @@ void MyTextEdit::translate(QString* s)
     QTextStream stream(&curText);
     QString translated;
     QString line;
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     while (stream.readLineInto(&line))
     {
         if (line.trimmed().isEmpty()) continue;
@@ -188,6 +191,9 @@ void MyTextEdit::translate(QString* s)
         /* Add translation_result to global map TChunkMap */
         TChunkMap.emplace_back(translation_result);
     }
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+    return;
     setPlainText(translated);
     /* Restore old scroll bar position */
     verticalScrollBar()->setValue(oldScrollBarValue);

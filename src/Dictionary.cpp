@@ -66,6 +66,7 @@ bool Dictionary::loadFromFile(const std::string& _file_name)
         {
             length_list.insert(first_part.length());
             ++length_availability[first_part.length()];
+            start_char_list.insert(first_part.charAt(0));
         }
     }
     if(length_list.empty() == false)
@@ -79,7 +80,7 @@ bool Dictionary::loadFromFile(const std::string& _file_name)
     return true;
 }
 
-icu::UnicodeString Dictionary::getTranslated(icu::UnicodeString text)
+icu::UnicodeString Dictionary::getTranslated(const icu::UnicodeString& text)
 {
     if (length_list.count(text.length()) == 0)
     {
@@ -90,6 +91,11 @@ icu::UnicodeString Dictionary::getTranslated(icu::UnicodeString text)
         return (records.find(text))->second;
     }
     return text;
+}
+
+bool Dictionary::isThereARecordStartWith(const UChar &c)
+{
+    return (start_char_list.count(c) > 0);
 }
 
 int32_t Dictionary::getMaxLength()
@@ -111,17 +117,15 @@ void Dictionary::addNewRecord(icu::UnicodeString cn, icu::UnicodeString vn)
     icu::UnicodeString first_part = cn.trim();
     icu::UnicodeString second_part = vn.trim();
     if (first_part.isEmpty()) return;
-    std::string s1;
-    std::string s2;
-    cn.toUTF8String(s1);
-    vn.toUTF8String(s2);
     /* Add new element */
     auto emplace_result = records[first_part] = second_part;
+    start_char_list.insert(first_part.charAt(0));
     length_list.insert(first_part.length());
     ++length_availability[first_part.length()];
     if (first_part.length() > max_len) max_len = first_part.length();
     if (first_part.length() < min_len) min_len = first_part.length();
-    log(log_id, LogLevel::LOG_INFO, "new record {} -> {} added", s1, s2);
+    std::string sink;
+    log(log_id, LogLevel::LOG_INFO, "new record {} -> {} added", cn.toUTF8String(sink), vn.toUTF8String(sink));
 }
 
 void Dictionary::delRecord(icu::UnicodeString cn)
@@ -145,10 +149,11 @@ void Dictionary::delRecord(icu::UnicodeString cn)
             min_len = *(result.first);
             max_len = *(result.second);
         }
+        start_char_list.erase(first_part.charAt(0));
     }
-    std::string s;
-    cn.toUTF8String(s);
-    log(log_id, LogLevel::LOG_INFO, "record {} deleted", s);
+    std::string sink;
+    cn.toUTF8String(sink);
+    log(log_id, LogLevel::LOG_INFO, "record {} deleted", cn.toUTF8String(sink));
 }
 
 void Dictionary::update()

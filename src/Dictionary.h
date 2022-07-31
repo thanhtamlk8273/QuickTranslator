@@ -26,12 +26,14 @@ private:
 	int max_len;
 	int min_len;
 	std::unordered_set<int> length_list;
-	std::unordered_map<int, int> length_availability;
+    std::unordered_map<int, int> length_availability;
+    std::unordered_set<UChar> start_char_list;
 public:
 	Dictionary(): log_id(-1), max_len(0), min_len(100) {};
     bool loadFromFile(const std::string& file_name);
-	icu::UnicodeString getTranslated(icu::UnicodeString text);
-	int getMaxLength();
+    icu::UnicodeString getTranslated(const icu::UnicodeString& text);
+    bool isThereARecordStartWith(const UChar& c);
+    int getMaxLength();
 	int getMinLength();
 	int getNumberOfRecords();
 	void addNewRecord(icu::UnicodeString cn, icu::UnicodeString vn);
