@@ -36,6 +36,13 @@ namespace {
         log(log_ids.size() - 1, LogLevel::LOG_INFO, "Register log ID {}", log_id);
         return (log_ids.size() - 1);
     }
+
+    std::string toStdString(icu::UnicodeString& s)
+    {
+        std::string result;
+        s.toUTF8String(result);
+        return result;
+    }
 }
 
 bool Dictionary::loadFromFile(const std::string& _file_name)
@@ -82,10 +89,6 @@ bool Dictionary::loadFromFile(const std::string& _file_name)
 
 icu::UnicodeString Dictionary::getTranslated(const icu::UnicodeString& text)
 {
-    if (length_list.count(text.length()) == 0)
-    {
-        return text;
-    }
     if (records.find(text) != records.end())
     {
         return (records.find(text))->second;
@@ -124,8 +127,7 @@ void Dictionary::addNewRecord(icu::UnicodeString cn, icu::UnicodeString vn)
     ++length_availability[first_part.length()];
     if (first_part.length() > max_len) max_len = first_part.length();
     if (first_part.length() < min_len) min_len = first_part.length();
-    std::string sink;
-    log(log_id, LogLevel::LOG_INFO, "new record {} -> {} added", cn.toUTF8String(sink), vn.toUTF8String(sink));
+    log(log_id, LogLevel::LOG_INFO, "new record {} -> {} added", toStdString(cn), toStdString(vn));
 }
 
 void Dictionary::delRecord(icu::UnicodeString cn)
@@ -151,9 +153,7 @@ void Dictionary::delRecord(icu::UnicodeString cn)
         }
         start_char_list.erase(first_part.charAt(0));
     }
-    std::string sink;
-    cn.toUTF8String(sink);
-    log(log_id, LogLevel::LOG_INFO, "record {} deleted", cn.toUTF8String(sink));
+    log(log_id, LogLevel::LOG_INFO, "record {} deleted", toStdString(cn));
 }
 
 void Dictionary::update()

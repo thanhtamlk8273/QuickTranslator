@@ -7,6 +7,7 @@
 #include <chrono>
 #include <string>
 #include <unordered_set>
+#include <set>
 #include <fstream>
 
 template <>
@@ -25,7 +26,7 @@ private:
 	std::unordered_map<icu::UnicodeString, icu::UnicodeString> records;
 	int max_len;
 	int min_len;
-	std::unordered_set<int> length_list;
+    std::set<int> length_list;
     std::unordered_map<int, int> length_availability;
     std::unordered_set<UChar> start_char_list;
 public:
@@ -40,7 +41,7 @@ public:
 	void delRecord(icu::UnicodeString cn);
 	void update();
 	/* For testing purpose */
-	std::unordered_set<int>& getLengthList() { return length_list; }
+    std::set<int>& getLengthList() { return length_list; }
 	std::unordered_map<int, int>& getLengthAvailability() { return length_availability; }
 };
 

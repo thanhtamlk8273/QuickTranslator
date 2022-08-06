@@ -36,8 +36,8 @@ set (ASAN_LINKING_FLAGS -fsanitize=address)
 
 add_executable(${CMAKE_PROJECT_NAME} ${SRCS})
 
-target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -Wall -Werror -g -O0 -fsanitize=address -fno-omit-frame-pointer -fsanitize-recover=address)
-target_link_options(${CMAKE_PROJECT_NAME} PRIVATE -fsanitize=address)
+target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -Wall -Werror -g -O3)
+target_link_options(${CMAKE_PROJECT_NAME} PRIVATE)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ICU::uc ICU::i18n)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE fmt)
