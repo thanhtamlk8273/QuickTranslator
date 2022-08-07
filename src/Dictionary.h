@@ -1,14 +1,10 @@
 #ifndef HEADER_H_DICTIONARY
 #define HEADER_H_DICTIONARY
 
-#include <unicode/uconfig.h>
 #include <unordered_map>
 #include <unicode/unistr.h>
-#include <chrono>
 #include <string>
-#include <unordered_set>
 #include <set>
-#include <fstream>
 #include <vector>
 
 template <>

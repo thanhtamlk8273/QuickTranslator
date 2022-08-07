@@ -4,7 +4,6 @@
 #include <QtWidgets>
 #include "Translator.h"
 #include <memory>
-#include "Common.h"
 
 class MyTextEdit : public QTextEdit
 {

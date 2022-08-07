@@ -1,6 +1,5 @@
 #ifndef HEADER_H_TRANSLATOR
 #define HEADER_H_TRANSLATOR
-#include <vector>
 #include <unicode/unistr.h>
 #include "Dictionary.h"
 

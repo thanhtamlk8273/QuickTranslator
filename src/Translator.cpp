@@ -1,19 +1,10 @@
 #include "Translator.h"
 
-#include "unicode/utypes.h"
-#include "unicode/uchar.h"
-#include "unicode/locid.h"
-#include "unicode/ustring.h"
-#include "unicode/ucnv.h"
-#include "unicode/ustdio.h"
-#include "unicode/ucsdet.h"
-#include "unicode/schriter.h"
+#include <unicode/uchar.h>
+#include <unicode/schriter.h>
 
 #include "Dictionary.h"
 #include <map>
-#include <iostream>
-#include <algorithm>
-#include <array>
 
 namespace {
     static const std::map<UChar32, UChar32> punctationTable = {
