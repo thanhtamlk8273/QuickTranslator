@@ -152,7 +152,7 @@ std::vector<std::pair<icu::UnicodeString, icu::UnicodeString>> Translator::Trans
     int32_t s_length = s.countChar32();
     while (i < s_length)
     {
-        int tmp_end = (vp_dic->getMaxLength() < (s.countChar32() - i)) ? (i + vp_dic->getMaxLength()) : s_length;
+        int tmp_end = (vp_dic->getMaxLength() < (s_length - i)) ? (i + vp_dic->getMaxLength()) : s_length;
         /* Update possible lengths lists */
         updatePossibleLengthList(names_possible_lengths, tmp_end);
         updatePossibleLengthList(vps_possible_lengths, tmp_end);
@@ -206,20 +206,7 @@ std::vector<std::pair<icu::UnicodeString, icu::UnicodeString>> Translator::Trans
         if (notTranslated)
         {
             UChar c = s.charAt(i);
-            if (ublock_getCode(c) == UBLOCK_BASIC_LATIN)
-            {
-                icu::UnicodeString latinString = getLatinString(s.tempSubString(i, tmp_end));
-                result.emplace_back(latinString, latinString);
-                step = latinString.length();
-            }
-            else if (u_isalnum(c))
-            {
-                icu::UnicodeString sub_cn = icu::UnicodeString(c);
-                icu::UnicodeString temp = vp_dic->getTranslated(sub_cn);
-                if (temp == sub_cn) temp = hanviets_dic->getTranslated(c);
-                result.emplace_back(temp, c);
-            }
-            else if(u_ispunct(c))
+            if(u_ispunct(c))
             {
                 /* With punctation, we will find its equivalent in punctationTable
                  * Then append it to the last transaltion unit if there is one
@@ -234,12 +221,18 @@ std::vector<std::pair<icu::UnicodeString, icu::UnicodeString>> Translator::Trans
                     result.emplace_back(getPunc(c), c);
                 }
             }
+            if (ublock_getCode(c) == UBLOCK_BASIC_LATIN)
+            {
+                icu::UnicodeString latinString = getLatinString(s.tempSubString(i, tmp_end));
+                result.emplace_back(latinString, latinString);
+                step = latinString.length();
+            }
             else
             {
-                result.emplace_back(c, c);
+                result.emplace_back(hanviets_dic->getTranslated(c), c);
             }
         }
-        i = i + (step >= 0 ? step : 1);
+        i = i + (step > 0 ? step : 1);
     }
     return result;
 }
