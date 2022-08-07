@@ -6,19 +6,22 @@
 #include <cstdio>
 #include <fmt/core.h>
 
+class PossibleLengthList;
+
 namespace {
     std::vector<std::string> log_ids;
     enum class LogLevel {
         LOG_INFO = 0,
         LOG_ERROR
     };
+
     const char* expandLogLevel(LogLevel level)
     {
         switch (level)
         {
-        case LogLevel::LOG_INFO: return "[INFO]";
-        case LogLevel::LOG_ERROR: return "[ERROR]";
-        default: return "[UNKNOWN]";
+            case LogLevel::LOG_INFO: return "[INFO]";
+            case LogLevel::LOG_ERROR: return "[ERROR]";
+            default: return "[UNKNOWN]";
         }
     }
 
@@ -35,6 +38,13 @@ namespace {
         log_ids.emplace_back(std::string("[") + log_id + std::string("]"));
         log(log_ids.size() - 1, LogLevel::LOG_INFO, "Register log ID {}", log_id);
         return (log_ids.size() - 1);
+    }
+
+    std::string toStdString(const icu::UnicodeString& s)
+    {
+        std::string result;
+        s.toUTF8String(result);
+        return result;
     }
 }
 
@@ -64,27 +74,17 @@ bool Dictionary::loadFromFile(const std::string& _file_name)
         auto emplace_result = records.try_emplace(first_part.trim(), second_part.trim());
         if (emplace_result.second)
         {
-            length_list.insert(first_part.length());
-            ++length_availability[first_part.length()];
+            possible_lengths.add(first_part.length());
+            possible_first_chars.add(first_part.charAt(0));
         }
-    }
-    if(length_list.empty() == false)
-    {
-        auto result = std::minmax_element(length_list.begin(), length_list.end());
-        min_len = *(result.first);
-        max_len = *(result.second);
     }
     log(log_id, LogLevel::LOG_INFO, "{} records loaded", records.size());
     dic_file.close();
     return true;
 }
 
-icu::UnicodeString Dictionary::getTranslated(icu::UnicodeString text)
+icu::UnicodeString Dictionary::getTranslated(const icu::UnicodeString& text)
 {
-    if (length_list.count(text.length()) == 0)
-    {
-        return text;
-    }
     if (records.find(text) != records.end())
     {
         return (records.find(text))->second;
@@ -92,14 +92,19 @@ icu::UnicodeString Dictionary::getTranslated(icu::UnicodeString text)
     return text;
 }
 
-int32_t Dictionary::getMaxLength()
+bool Dictionary::isThereARecordStartWith(const char* ch)
 {
-    return max_len;
+    return isThereARecordStartWith(icu::UnicodeString::fromUTF8(icu::StringPiece(ch)).char32At(0));
 }
 
-int32_t Dictionary::getMinLength()
+bool Dictionary::isThereARecordStartWith(const UChar &ch)
 {
-    return min_len;
+    return (possible_first_chars.find(ch) > 0);
+}
+
+int Dictionary::getMaxLength()
+{
+    return possible_lengths.max_len;
 }
 
 int Dictionary::getNumberOfRecords() {
@@ -108,47 +113,29 @@ int Dictionary::getNumberOfRecords() {
 
 void Dictionary::addNewRecord(icu::UnicodeString cn, icu::UnicodeString vn)
 {
+    if(cn.isEmpty())
+    {
+        return;
+    }
     icu::UnicodeString first_part = cn.trim();
     icu::UnicodeString second_part = vn.trim();
-    if (first_part.isEmpty()) return;
-    std::string s1;
-    std::string s2;
-    cn.toUTF8String(s1);
-    vn.toUTF8String(s2);
     /* Add new element */
-    auto emplace_result = records[first_part] = second_part;
-    length_list.insert(first_part.length());
-    ++length_availability[first_part.length()];
-    if (first_part.length() > max_len) max_len = first_part.length();
-    if (first_part.length() < min_len) min_len = first_part.length();
-    log(log_id, LogLevel::LOG_INFO, "new record {} -> {} added", s1, s2);
+    records[first_part] = second_part;
+    possible_first_chars.add(first_part.charAt(0));
+    possible_lengths.add(first_part.length());
+    log(log_id, LogLevel::LOG_INFO, "new record {} -> {} added", toStdString(cn), toStdString(vn));
 }
 
 void Dictionary::delRecord(icu::UnicodeString cn)
 {
     icu::UnicodeString first_part = cn.trim();
-    if (first_part.isEmpty()) return;
-    int erase_count = records.erase(first_part);
-    if (erase_count == 0) return;
-    if (length_availability[first_part.length()] == 0)
+    if(records.erase(first_part) == 0)
     {
-        log(log_id, LogLevel::LOG_ERROR, "Abnormality. availability of the length has reached 0 but we can still delete from records");
         return;
     }
-    if((--length_availability[first_part.length()]) == 0)
-    {
-        length_list.erase(first_part.length());
-        /* A length has been deleted from length_list. Re-calculate min and max is necessary */
-        if(length_list.empty() == false)
-        {
-            auto result = std::minmax_element(length_list.begin(), length_list.end());
-            min_len = *(result.first);
-            max_len = *(result.second);
-        }
-    }
-    std::string s;
-    cn.toUTF8String(s);
-    log(log_id, LogLevel::LOG_INFO, "record {} deleted", s);
+    possible_lengths.remove(first_part.length());
+    possible_first_chars.remove(first_part.charAt(0));
+    log(log_id, LogLevel::LOG_INFO, "record {} deleted", toStdString(cn));
 }
 
 void Dictionary::update()
@@ -158,11 +145,7 @@ void Dictionary::update()
     unsigned long count = 0;
     for (auto& record : records)
     {
-        std::string first_part;
-        std::string second_part;
-        record.first.toUTF8String(first_part);
-        record.second.toUTF8String(second_part);
-        data += first_part + "=" + second_part + "\n";
+        data += toStdString(record.first) + "=" + toStdString(record.second) + "\n";
         ++count;
     }
     dic_file.write(data.c_str(), data.length());
@@ -170,3 +153,72 @@ void Dictionary::update()
     log(log_id, LogLevel::LOG_INFO, "{} records was written to file", count);
 }
 
+std::set<int> &Dictionary::getLengthSet()
+{
+    return possible_lengths.length_set;
+}
+
+/******************************/
+/* PossibleLengthList methods */
+/******************************/
+void Dictionary::PossibleLengthList::add(int len)
+{
+    if(len == 0) return;
+    length_set.insert(len);
+    if(len > (int) reference_count.size())
+    {
+        reference_count.resize(len, 0);
+    }
+    ++reference_count[len-1];
+    if(!length_set.empty())
+    {
+        max_len = *(length_set.rbegin());
+    }
+}
+
+void Dictionary::PossibleLengthList::remove(int len)
+{
+    if(len == 0 || len > (int) reference_count.size()) return;
+    if(--reference_count[len-1] > 0) {
+        return;
+    }
+    length_set.erase(len);
+    max_len = length_set.empty() ? 0 : *(length_set.rbegin());
+}
+
+/*********************************/
+/* PossibleStartCharList methods */
+/*********************************/
+void Dictionary::PossibleFirstCharList::add(UChar ch)
+{
+    auto it = start_chars_list.find(ch);
+    if(it != start_chars_list.end())
+    {
+        ++(it->second).ref_count;
+    }
+    else
+    {
+        PossibleFirstChar my_struct {1, ch};
+        start_chars_list.emplace(ch, my_struct);
+    }
+}
+
+void Dictionary::PossibleFirstCharList::remove(UChar ch)
+{
+    auto it = start_chars_list.find(ch);
+    if(it == start_chars_list.end())
+    {
+        return;
+    }
+    int& ref_count = (it->second).ref_count;
+    --ref_count;
+    if(ref_count == 0)
+    {
+        start_chars_list.erase(ch);
+    }
+}
+
+bool Dictionary::PossibleFirstCharList::find(UChar ch)
+{
+    return start_chars_list.find(ch) != start_chars_list.end();
+}
