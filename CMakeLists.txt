@@ -16,6 +16,10 @@ find_package(ICU 70.0 COMPONENTS uc i18n  REQUIRED)
 
 add_subdirectory(fmt)
 
+enable_testing()
+include(GoogleTest)
+add_subdirectory(tests)
+
 include_directories(
     src
 )

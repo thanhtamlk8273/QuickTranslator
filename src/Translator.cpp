@@ -146,8 +146,8 @@ void updatePossibleLengthList(std::set<int>& my_list, int value)
 
 std::vector<std::pair<icu::UnicodeString, icu::UnicodeString>> Translator::TranslateALine(icu::UnicodeString& s)
 {
-    std::set<int> names_possible_lengths = names_dic->getLengthList();
-    std::set<int> vps_possible_lengths = vp_dic->getLengthList();
+    std::set<int> names_possible_lengths = names_dic->getLengthSet();
+    std::set<int> vps_possible_lengths = vp_dic->getLengthSet();
     std::vector<std::pair<icu::UnicodeString, icu::UnicodeString>> result;
     int i = 0;
     int32_t s_length = s.length();
@@ -161,8 +161,7 @@ std::vector<std::pair<icu::UnicodeString, icu::UnicodeString>> Translator::Trans
         std::vector<icu::UnicodeString> subcn_vec(max_length);
         for(int j = 1; j < max_length + 1; ++j)
         {
-            subcn_vec.push_back(s.tempSubString(i, j));
-
+            subcn_vec[j-1] = s.tempSubString(i, j);
         }
         /* Initialize important variables */
         int notTranslated = true;
@@ -174,6 +173,7 @@ std::vector<std::pair<icu::UnicodeString, icu::UnicodeString>> Translator::Trans
             std::set<int>::reverse_iterator it;
             for(it = names_possible_lengths.rbegin(); it != names_possible_lengths.rend(); ++it)
             {
+
                 int len = *it;
                 icu::UnicodeString cn = names_dic->getTranslated(subcn_vec[len-1]);
                 if(cn != subcn_vec[len-1])
