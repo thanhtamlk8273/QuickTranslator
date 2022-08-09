@@ -247,10 +247,13 @@ void MyTextEdit::createEditDialog(Dictionary* dic)
         translate(&curText);
         dialog->close();
     };
+    auto handleCancelButton = [&]() {
+        dialog->close();
+    };
     /* Signals and slots */
     QObject::connect(add_button, &QPushButton::released, handleAddButton);
     QObject::connect(delete_button, &QPushButton::released, handleDelButton);
-    QObject::connect(cancel_button, &QPushButton::released, [&]() { dialog->close(); });
+    QObject::connect(cancel_button, &QPushButton::released, handleCancelButton);
     /* Execute*/
     dialog->exec();
     /* Clean up */
@@ -267,4 +270,46 @@ void MyTextEdit::handleAboutToQuitSignal()
     VietPhrases->update();
     Names->update();
     Hanviets->update();
+}
+
+void MyTextEdit::handleOpenFileSignal()
+{
+    QString file_name;
+    QFile in_file_desc;
+    /* Create dialog to select file */
+    file_name = QFileDialog::getOpenFileName(nullptr, "Open Image", "~", "Text files (*.txt *)");
+    in_file_desc.setFileName(file_name);
+    if(!in_file_desc.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
+        return;
+    }
+    /* Setting up a stream for it */
+    QTextStream in_stream(&in_file_desc);
+    /* Start reading file */
+    QString translated;
+    QString line;
+    while(in_stream.readLineInto(&line))
+    {
+        icu::UnicodeString u_line = line.trimmed().utf16();
+        if (u_line.isEmpty())
+        {
+            continue;
+        }
+        translated += "   ";
+        translated += QString::fromUtf16(translator.translateALine(u_line).getTerminatedBuffer());
+        translated += "\n\n";
+    }
+    /* Write "translated" result file */
+    QFileInfo file_info(file_name); // I know, I know. I am a lazy fuck
+    QString out_file_name(file_info.canonicalPath() + "/" + file_info.baseName() + "_translated");
+    out_file_name += (file_info.suffix().isEmpty()) ? "" : "." + file_info.suffix();
+    writeToDebugDialog(out_file_name);
+    QFile out_file_desc(out_file_name);
+    /* Create dialog to select file */
+    if(!out_file_desc.open(QIODevice::WriteOnly | QIODevice::Text))
+    {
+        return;
+    }
+    out_file_desc.write(translated.toUtf8());
+    writeToDebugDialog("Wrote result to file");
 }

@@ -16,6 +16,7 @@ public:
 public slots:
     void translateButtonReleased();
     void handleAboutToQuitSignal();
+    void handleOpenFileSignal();
 
 protected:
     void contextMenuEvent(QContextMenuEvent* event);

@@ -4,8 +4,6 @@
 #include <fstream>
 #include <fmt/core.h>
 
-class PossibleLengthList;
-
 namespace {
     std::vector<std::string> log_ids;
     enum class LogLevel {

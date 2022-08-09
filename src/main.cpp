@@ -37,20 +37,21 @@ int main(int argc, char* argv[])
     QApplication a(argc, argv);
     QWidget window;
     window.resize(800, 600);
-
     /* Debug QDialog */
-//    ddialog = new QDialog();
-//    QHBoxLayout* ddialog_layout = new QHBoxLayout();
-//    ddialog_layout->addWidget(new QTextEdit());
-//    ddialog->setLayout(ddialog_layout);
-//    ddialog->show();
+    ddialog = new QDialog();
+    QHBoxLayout* ddialog_layout = new QHBoxLayout();
+    ddialog_layout->addWidget(new QTextEdit());
+    ddialog->setLayout(ddialog_layout);
+    ddialog->show();
 
     QVBoxLayout* layout = new QVBoxLayout();
 
     /* Add buttons */
-    QPushButton* pushButton = new QPushButton("Translate");
+    QPushButton* open_button = new QPushButton("Open");
+    QPushButton* translate_button = new QPushButton("Translate");
     QHBoxLayout* button_layout = new QHBoxLayout();
-    button_layout->addWidget(pushButton);
+    button_layout->addWidget(open_button);
+    button_layout->addWidget(translate_button);
     button_layout->addStretch(1);
     layout->addLayout(button_layout);
 
@@ -59,7 +60,8 @@ int main(int argc, char* argv[])
     layout->addWidget(textEdit);
 
     /* Signals and slots */
-    QObject::connect(pushButton, &QPushButton::released, textEdit, &MyTextEdit::translateButtonReleased);
+    QObject::connect(open_button, &QPushButton::released, textEdit, &MyTextEdit::handleOpenFileSignal);
+    QObject::connect(translate_button, &QPushButton::released, textEdit, &MyTextEdit::translateButtonReleased);
     QObject::connect(&a, &QApplication::aboutToQuit, textEdit, &MyTextEdit::handleAboutToQuitSignal);
 
     window.setLayout(layout);
