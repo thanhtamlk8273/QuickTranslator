@@ -6,14 +6,14 @@
 #include "Translator.h"
 #include "MyTextEdit.h"
 
-QDialog* ddialog;
+//QDialog* ddialog;
 
-void writeToDebugDialog(const QString& debug_log) {
-    auto ddialog_textEdit = ddialog->findChild<QTextEdit*>();
-    QTextCursor cursor(ddialog_textEdit->textCursor());
-    cursor.insertText(debug_log);
-    cursor.insertBlock();
-};
+//void writeToDebugDialog(const QString& debug_log) {
+//    auto ddialog_textEdit = ddialog->findChild<QTextEdit*>();
+//    QTextCursor cursor(ddialog_textEdit->textCursor());
+//    cursor.insertText(debug_log);
+//    cursor.insertBlock();
+//};
 
 int main(int argc, char* argv[])
 {
@@ -38,11 +38,11 @@ int main(int argc, char* argv[])
     QWidget window;
     window.resize(800, 600);
     /* Debug QDialog */
-    ddialog = new QDialog();
-    QHBoxLayout* ddialog_layout = new QHBoxLayout();
-    ddialog_layout->addWidget(new QTextEdit());
-    ddialog->setLayout(ddialog_layout);
-    ddialog->show();
+    //ddialog = new QDialog();
+//    QHBoxLayout* ddialog_layout = new QHBoxLayout();
+//    ddialog_layout->addWidget(new QTextEdit());
+//    ddialog->setLayout(ddialog_layout);
+//    ddialog->show();
 
     QVBoxLayout* layout = new QVBoxLayout();
 

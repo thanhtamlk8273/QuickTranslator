@@ -2,39 +2,9 @@
 #include <string>
 #include <iostream>
 #include <fstream>
-#include <fmt/core.h>
 
 namespace {
-    std::vector<std::string> log_ids;
-    enum class LogLevel {
-        LOG_INFO = 0,
-        LOG_ERROR
-    };
-
-    const char* expandLogLevel(LogLevel level)
-    {
-        switch (level)
-        {
-            case LogLevel::LOG_INFO: return "[INFO]";
-            case LogLevel::LOG_ERROR: return "[ERROR]";
-            default: return "[UNKNOWN]";
-        }
-    }
-
-    template<class... T>
-    void log(int id, LogLevel level, const std::string& fmt, T... args)
-    {
-        if (id > (static_cast<int>(log_ids.size() - 1))) return;
-        std::string log_line = fmt::format(fmt + "\n", args...);
-        std::cout << std::string(expandLogLevel(level)) << log_ids[id] << log_line;
-    }
-
-    int registerLogId(const std::string& log_id)
-    {
-        log_ids.emplace_back(std::string("[") + log_id + std::string("]"));
-        log(log_ids.size() - 1, LogLevel::LOG_INFO, "Register log ID {}", log_id);
-        return (log_ids.size() - 1);
-    }
+    const float load_factor = 0.4;
 
     std::string toStdString(const icu::UnicodeString& s)
     {
@@ -44,15 +14,21 @@ namespace {
     }
 }
 
+Dictionary::Dictionary()
+{
+    records.max_load_factor(load_factor);
+}
+
 bool Dictionary::loadFromFile(const std::string& _file_name)
 {
     file_name = _file_name;
-    log_id = registerLogId(file_name);
-    log(log_id, LogLevel::LOG_INFO, "Start to load records from {}", file_name);
+    /* Now we know file_name. Create logger */
+    logger = Log(file_name);
+    logger.log(Log::Level::LOG_INFO, "Start to load records from {}", file_name);
     std::ifstream dic_file = std::ifstream(file_name, std::ifstream::binary);
     if (!dic_file.is_open())
     {
-        log(log_id, LogLevel::LOG_ERROR, "Unable to open {}", file_name);
+        logger.log(Log::Level::LOG_ERROR, "Unable to open {}", file_name);
         return false;
     }
     std::string line;
@@ -74,7 +50,7 @@ bool Dictionary::loadFromFile(const std::string& _file_name)
             possible_first_chars.add(first_part.charAt(0));
         }
     }
-    log(log_id, LogLevel::LOG_INFO, "{} records loaded", records.size());
+    logger.log(Log::Level::LOG_INFO, "{} records loaded", records.size());
     dic_file.close();
     return true;
 }
@@ -98,12 +74,12 @@ bool Dictionary::isThereARecordStartWith(const UChar &ch)
     return (possible_first_chars.find(ch) > 0);
 }
 
-int Dictionary::getMaxLength()
+auto Dictionary::getMaxLength() -> size_type
 {
     return possible_lengths.max_len;
 }
 
-int Dictionary::getNumberOfRecords() {
+auto Dictionary::getNumberOfRecords() -> size_type {
     return records.size();
 }
 
@@ -119,7 +95,7 @@ void Dictionary::addNewRecord(icu::UnicodeString cn, icu::UnicodeString vn)
     records[first_part] = second_part;
     possible_first_chars.add(first_part.charAt(0));
     possible_lengths.add(first_part.length());
-    log(log_id, LogLevel::LOG_INFO, "new record {} -> {} added", toStdString(cn), toStdString(vn));
+    logger.log(Log::Level::LOG_INFO, "new record {} -> {} added", toStdString(cn), toStdString(vn));
 }
 
 void Dictionary::delRecord(icu::UnicodeString cn)
@@ -131,7 +107,7 @@ void Dictionary::delRecord(icu::UnicodeString cn)
     }
     possible_lengths.remove(first_part.length());
     possible_first_chars.remove(first_part.charAt(0));
-    log(log_id, LogLevel::LOG_INFO, "record {} deleted", toStdString(cn));
+    logger.log(Log::Level::LOG_INFO, "record {} deleted", toStdString(cn));
 }
 
 void Dictionary::update()
@@ -146,10 +122,10 @@ void Dictionary::update()
     }
     dic_file.write(data.c_str(), data.length());
     dic_file.close();
-    log(log_id, LogLevel::LOG_INFO, "{} records was written to file", count);
+    logger.log(Log::Level::LOG_INFO, "{} records was written to file", count);
 }
 
-std::set<int> &Dictionary::getLengthSet()
+auto Dictionary::getLengthSet() -> std::set<size_type>&
 {
     return possible_lengths.length_set;
 }
@@ -157,7 +133,7 @@ std::set<int> &Dictionary::getLengthSet()
 /******************************/
 /* PossibleLengthList methods */
 /******************************/
-void Dictionary::PossibleLengthList::add(int len)
+void Dictionary::PossibleLengthList::add(size_type len)
 {
     if(len == 0) return;
     length_set.insert(len);
@@ -172,7 +148,7 @@ void Dictionary::PossibleLengthList::add(int len)
     }
 }
 
-void Dictionary::PossibleLengthList::remove(int len)
+void Dictionary::PossibleLengthList::remove(size_type len)
 {
     if(len == 0 || len > (int) reference_count.size()) return;
     if(--reference_count[len-1] > 0) {
@@ -190,12 +166,11 @@ void Dictionary::PossibleFirstCharList::add(UChar ch)
     auto it = start_chars_list.find(ch);
     if(it != start_chars_list.end())
     {
-        ++(it->second).ref_count;
+        ++(it->second);
     }
     else
     {
-        PossibleFirstChar my_struct {1, ch};
-        start_chars_list.emplace(ch, my_struct);
+        start_chars_list.emplace(ch, 1);
     }
 }
 
@@ -206,7 +181,7 @@ void Dictionary::PossibleFirstCharList::remove(UChar ch)
     {
         return;
     }
-    int& ref_count = (it->second).ref_count;
+    int& ref_count = (it->second);
     --ref_count;
     if(ref_count == 0)
     {

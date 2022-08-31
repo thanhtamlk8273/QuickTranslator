@@ -6,40 +6,39 @@
 #include <string>
 #include <set>
 #include <vector>
+#include <log.h>
 
 template <>
 struct std::hash<icu::UnicodeString> {
+    const int32_t max_hash_length = 5;
+
     std::size_t operator()(icu::UnicodeString const& s) const noexcept
     {
-        return s.hashCode();
+        return s.tempSubString(0, max_hash_length).hashCode();
     }
 };
 
 class Dictionary
 {
+public:
+    /* Member types */
+    using size_type = int32_t;
 private:
     /* PossibleLengthList definition */
     struct PossibleLengthList {
         /* Data */
-        int max_len;
-        std::set<int> length_set;
+        size_type max_len;
+        std::set<size_type> length_set;
         std::vector<int> reference_count;
         /* Methods */
         PossibleLengthList(): max_len(0) {};
-        void add(int len);
-        void remove(int len);
-    };
-
-    /* FirstCharList definition */
-    struct PossibleFirstChar {
-        int ref_count;
-        UChar ch;
+        void add(size_type len);
+        void remove(size_type len);
     };
 
     class PossibleFirstCharList {
-        /* Data */
     private:
-        std::unordered_map<UChar, PossibleFirstChar> start_chars_list;
+        std::unordered_map<UChar, int> start_chars_list;
     public:
         /* Methods */
         void add(UChar ch);
@@ -48,23 +47,23 @@ private:
     };
 
     /* Variables */
-	int log_id;
+    Log logger;
 	std::string file_name;
-	std::unordered_map<icu::UnicodeString, icu::UnicodeString> records;
+    std::unordered_map<icu::UnicodeString, icu::UnicodeString> records;
     PossibleFirstCharList possible_first_chars;
     PossibleLengthList possible_lengths;
 public:
-    Dictionary(): log_id(-1) {};
+    /* Methods */
+    Dictionary();
     bool loadFromFile(const std::string& file_name);
     icu::UnicodeString getTranslated(const icu::UnicodeString& text);
     bool isThereARecordStartWith(const char* ch);
     bool isThereARecordStartWith(const UChar& ch);
-    int getMaxLength();
-	int getMinLength();
-	int getNumberOfRecords();
+    size_type getMaxLength();
+    size_type getNumberOfRecords();
 	void addNewRecord(icu::UnicodeString cn, icu::UnicodeString vn);
 	void delRecord(icu::UnicodeString cn);
 	void update();
-    std::set<int>& getLengthSet();
+    std::set<size_type>& getLengthSet();
 };
 #endif

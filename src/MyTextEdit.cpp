@@ -1,4 +1,6 @@
 #include "MyTextEdit.h"
+#include <chrono>
+#include <iostream>
 
 void writeToDebugDialog(const QString& debug_log);
 using TChunk = std::pair<icu::UnicodeString, icu::UnicodeString>;
@@ -164,6 +166,7 @@ void MyTextEdit::translate(QString* s)
     QTextStream stream(&curText);
     QString translated;
     QString line;
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     while (stream.readLineInto(&line))
     {
         if (line.trimmed().isEmpty()) continue;
@@ -187,6 +190,8 @@ void MyTextEdit::translate(QString* s)
         /* Add translation_result to global map TChunkMap */
         TChunkMap.emplace_back(translation_result);
     }
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
     setPlainText(translated);
     /* Restore old scroll bar position */
     verticalScrollBar()->setValue(oldScrollBarValue);
@@ -288,6 +293,7 @@ void MyTextEdit::handleOpenFileSignal()
     /* Start reading file */
     QString translated;
     QString line;
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     while(in_stream.readLineInto(&line))
     {
         icu::UnicodeString u_line = line.trimmed().utf16();
@@ -299,11 +305,12 @@ void MyTextEdit::handleOpenFileSignal()
         translated += QString::fromUtf16(translator.translateALine(u_line).getTerminatedBuffer());
         translated += "\n\n";
     }
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
     /* Write "translated" result file */
     QFileInfo file_info(file_name); // I know, I know. I am a lazy fuck
     QString out_file_name(file_info.canonicalPath() + "/" + file_info.baseName() + "_translated");
     out_file_name += (file_info.suffix().isEmpty()) ? "" : "." + file_info.suffix();
-    writeToDebugDialog(out_file_name);
     QFile out_file_desc(out_file_name);
     /* Create dialog to select file */
     if(!out_file_desc.open(QIODevice::WriteOnly | QIODevice::Text))
@@ -311,5 +318,4 @@ void MyTextEdit::handleOpenFileSignal()
         return;
     }
     out_file_desc.write(translated.toUtf8());
-    writeToDebugDialog("Wrote result to file");
 }

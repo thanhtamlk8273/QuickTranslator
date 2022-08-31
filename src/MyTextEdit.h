@@ -11,7 +11,7 @@ class MyTextEdit : public QTextEdit
 
 public:
     MyTextEdit(Dictionary* _VietPhrases, Dictionary* _Names, Dictionary* _Hanviets, QWidget* parent = nullptr);
-    ~MyTextEdit();
+    ~MyTextEdit() override;
 
 public slots:
     void translateButtonReleased();
@@ -19,9 +19,9 @@ public slots:
     void handleOpenFileSignal();
 
 protected:
-    void contextMenuEvent(QContextMenuEvent* event);
-    void mouseReleaseEvent(QMouseEvent* event);
-    void mousePressEvent(QMouseEvent* event);
+    void contextMenuEvent(QContextMenuEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
 
 private:
     /* Dictionary */

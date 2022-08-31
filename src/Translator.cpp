@@ -4,19 +4,18 @@
 #include <unicode/schriter.h>
 
 #include "Dictionary.h"
-#include <map>
 
 namespace {
-    static const std::map<UChar32, UChar32> punctationTable = {
+    const std::unordered_map<UChar32, UChar32> punctationTable = {
         {u'，', u','},
+        {u'、', u','},
         {u'。', u'.'},
         {u'“', u'\"'},
         {u'”', u'\"'},
         {u'！', u'!'},
         {u'？', u'?'},
         {u'【', u'['},
-        {u'】', u']'},
-        {u'、', u','}
+        {u'】', u']'}
     };
 
     UChar32 getPunc(const UChar32 punc)
@@ -30,15 +29,9 @@ namespace {
         return replacement;
     };
 
-//    void appendAString(icu::UnicodeString& toBeAppended, icu::UnicodeString ExtPart)
-//    {
-//        auto additionalWS = (!ExtPart.isEmpty() ? u" " : u"");
-//        toBeAppended += additionalWS + ExtPart;
-//    }
-
-    void updatePossibleLengthList(std::set<int>& my_list, int value)
+    void updatePossibleLengthList(std::set<int32_t>& my_list, int32_t value)
     {
-        std::set<int>::iterator it;
+        std::set<int32_t>::iterator it;
         for(it = my_list.begin(); it != my_list.end();)
         {
             if(*it > value)
@@ -53,7 +46,7 @@ namespace {
     }
 }
 
-icu::UnicodeString Translator::getLatinString(icu::UnicodeString&& s)
+icu::UnicodeString Translator::getLatinString(icu::UnicodeString&& s) const
 {
     icu::UnicodeString result;
     icu::StringCharacterIterator it(s);
@@ -66,42 +59,38 @@ icu::UnicodeString Translator::getLatinString(icu::UnicodeString&& s)
     return result;
 }
 
-icu::UnicodeString Translator::translateALine(icu::UnicodeString& s)
+icu::UnicodeString Translator::translateALine(const icu::UnicodeString& s) const
 {
-    std::set<int> names_possible_lengths = names_dic->getLengthSet();
-    std::set<int> vps_possible_lengths = vp_dic->getLengthSet();
+    std::set<int32_t> names_possible_lengths = names_dic->getLengthSet();
+    std::set<int32_t> vps_possible_lengths = vp_dic->getLengthSet();
     icu::UnicodeString result;
-    int i = 0;
+    int32_t i = 0;
     int32_t s_length = s.length();
     while (i < s_length)
     {
-        int max_length = (vp_dic->getMaxLength() < (s_length - i)) ? (i + vp_dic->getMaxLength()) : s_length;
-        /* Update possible lengths lists */
-        updatePossibleLengthList(names_possible_lengths, max_length);
-        updatePossibleLengthList(vps_possible_lengths, max_length);
-        /* prepare possible substrings */
-        std::vector<icu::UnicodeString> subcn_vec(max_length);
-        for(int j = 1; j < max_length + 1; ++j)
-        {
-            subcn_vec[j-1] = s.tempSubString(i, j);
-        }
+        int32_t max_length = (vp_dic->getMaxLength() < (s_length - i)) ? (i + vp_dic->getMaxLength()) : s_length;
         /* Initialize important variables */
         int notTranslated = true;
         int step = 1;
+        /* Update possible lengths lists */
+        updatePossibleLengthList(names_possible_lengths, max_length);
+        updatePossibleLengthList(vps_possible_lengths, max_length);
         /* Names have higher priority */
         bool matchInNames = (names_dic->isThereARecordStartWith(s.charAt(i)));
         if(matchInNames)
         {
-            std::set<int>::reverse_iterator it;
+            std::set<int32_t>::reverse_iterator it;
             for(it = names_possible_lengths.rbegin(); it != names_possible_lengths.rend(); ++it)
             {
-
-                int len = *it;
-                icu::UnicodeString cn = names_dic->getTranslated(subcn_vec[len-1]);
-                if(cn != subcn_vec[len-1])
+                icu::UnicodeString cn = s.tempSubString(i, *it);
+                icu::UnicodeString vn = names_dic->getTranslated(cn);
+                if(vn != cn)
                 {
-                    result += " " + cn;
-                    step = subcn_vec[len-1].length();
+                    if(!vn.isEmpty())
+                    {
+                        result += ' ' + vn;
+                    }
+                    step = cn.length();
                     notTranslated = false;
                     break;
                 }
@@ -111,15 +100,18 @@ icu::UnicodeString Translator::translateALine(icu::UnicodeString& s)
         bool matchInVP = (vp_dic->isThereARecordStartWith(s.charAt(i)));
         if(notTranslated && matchInVP)
         {
-            std::set<int>::reverse_iterator it;
+            std::set<int32_t>::reverse_iterator it;
             for(it = vps_possible_lengths.rbegin(); it != vps_possible_lengths.rend(); ++it)
             {
-                int len = *it;
-                icu::UnicodeString cn = vp_dic->getTranslated(subcn_vec[len-1]);
-                if(cn != subcn_vec[len-1])
+                icu::UnicodeString cn = s.tempSubString(i, *it);
+                icu::UnicodeString vn = vp_dic->getTranslated(cn);
+                if(vn != cn)
                 {
-                    result += " " + cn;
-                    step = subcn_vec[len-1].length();
+                    if(!vn.isEmpty())
+                    {
+                        result += ' ' + vn;
+                    }
+                    step = cn.length();
                     notTranslated = false;
                     break;
                 }
@@ -131,18 +123,22 @@ icu::UnicodeString Translator::translateALine(icu::UnicodeString& s)
             UChar c = s.char32At(i);
             if(u_ispunct(c))
             {
-                result += " ";
-                result += getPunc(c);
+                UChar32 new_punc = getPunc(c);
+                if(new_punc == u'\"' || new_punc == u'[' || new_punc == u']')
+                {
+                    result += ' ';
+                }
+                result += new_punc;
             }
             else if (ublock_getCode(c) == UBLOCK_BASIC_LATIN)
             {
                 icu::UnicodeString latinString = getLatinString(s.tempSubString(i, max_length));
-                result += " " + latinString;
+                result += ' ' + latinString;
                 step = latinString.length();
             }
             else
             {
-                result += " " + hanviets_dic->getTranslated(c);
+                result += ' ' + hanviets_dic->getTranslated(c);
             }
         }
         i = i + (step > 0 ? step : 1);
@@ -150,12 +146,12 @@ icu::UnicodeString Translator::translateALine(icu::UnicodeString& s)
     return result;
 }
 
-std::vector<std::pair<icu::UnicodeString, icu::UnicodeString>> Translator::TranslateALine(icu::UnicodeString& s)
+std::vector<std::pair<icu::UnicodeString, icu::UnicodeString>> Translator::TranslateALine(const icu::UnicodeString& s) const
 {
-    std::set<int> names_possible_lengths = names_dic->getLengthSet();
-    std::set<int> vps_possible_lengths = vp_dic->getLengthSet();
+    std::set<int32_t> names_possible_lengths = names_dic->getLengthSet();
+    std::set<int32_t> vps_possible_lengths = vp_dic->getLengthSet();
     std::vector<std::pair<icu::UnicodeString, icu::UnicodeString>> result;
-    int i = 0;
+    int32_t i = 0;
     int32_t s_length = s.length();
     while (i < s_length)
     {
@@ -163,12 +159,6 @@ std::vector<std::pair<icu::UnicodeString, icu::UnicodeString>> Translator::Trans
         /* Update possible lengths lists */
         updatePossibleLengthList(names_possible_lengths, max_length);
         updatePossibleLengthList(vps_possible_lengths, max_length);
-        /* prepare possible substrings */
-        std::vector<icu::UnicodeString> subcn_vec(max_length);
-        for(int j = 1; j < max_length + 1; ++j)
-        {
-            subcn_vec[j-1] = s.tempSubString(i, j);
-        }
         /* Initialize important variables */
         int notTranslated = true;
         int step = 1;
@@ -176,16 +166,15 @@ std::vector<std::pair<icu::UnicodeString, icu::UnicodeString>> Translator::Trans
         bool matchInNames = (names_dic->isThereARecordStartWith(s.charAt(i)));
         if(matchInNames)
         {
-            std::set<int>::reverse_iterator it;
+            std::set<int32_t>::reverse_iterator it;
             for(it = names_possible_lengths.rbegin(); it != names_possible_lengths.rend(); ++it)
             {
-
-                int len = *it;
-                icu::UnicodeString cn = names_dic->getTranslated(subcn_vec[len-1]);
-                if(cn != subcn_vec[len-1])
+                icu::UnicodeString cn = s.tempSubString(i, *it);
+                icu::UnicodeString vn = names_dic->getTranslated(cn);
+                if(vn != cn)
                 {
-                    result.emplace_back(cn, subcn_vec[len-1]);
-                    step = subcn_vec[len-1].length();
+                    result.emplace_back(vn, cn);
+                    step = cn.length();
                     notTranslated = false;
                     break;
                 }
@@ -195,15 +184,15 @@ std::vector<std::pair<icu::UnicodeString, icu::UnicodeString>> Translator::Trans
         bool matchInVP = (vp_dic->isThereARecordStartWith(s.charAt(i)));
         if(notTranslated && matchInVP)
         {
-            std::set<int>::reverse_iterator it;
+            std::set<int32_t>::reverse_iterator it;
             for(it = vps_possible_lengths.rbegin(); it != vps_possible_lengths.rend(); ++it)
             {
-                int len = *it;
-                icu::UnicodeString cn = vp_dic->getTranslated(subcn_vec[len-1]);
-                if(cn != subcn_vec[len-1])
+                icu::UnicodeString cn = s.tempSubString(i, *it);
+                icu::UnicodeString vn = vp_dic->getTranslated(cn);
+                if(vn != cn)
                 {
-                    result.emplace_back(cn, subcn_vec[len-1]);
-                    step = subcn_vec[len-1].length();
+                    result.emplace_back(vn, cn);
+                    step = cn.length();
                     notTranslated = false;
                     break;
                 }

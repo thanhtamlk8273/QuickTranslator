@@ -33,6 +33,7 @@ set (SRCS
     src/MyTextEdit.h
     src/Translator.cpp
     src/Translator.h
+    src/log.h
 )
 
 set (ASAN_COMPILE_FLAGS -fsanitize=address -fno-omit-frame-pointer -fsanitize-recover=address)
@@ -40,7 +41,7 @@ set (ASAN_LINKING_FLAGS -fsanitize=address)
 
 add_executable(${CMAKE_PROJECT_NAME} ${SRCS})
 
-target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -Wall -Werror -g -O3)
+target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -Wall -Werror -g -O3 -std=gnu++17)
 target_link_options(${CMAKE_PROJECT_NAME} PRIVATE)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ICU::uc ICU::i18n)
