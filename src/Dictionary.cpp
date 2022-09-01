@@ -57,9 +57,10 @@ bool Dictionary::loadFromFile(const std::string& _file_name)
 
 icu::UnicodeString Dictionary::getTranslated(const icu::UnicodeString& text)
 {
-    if (records.find(text) != records.end())
+    std::unordered_map<icu::UnicodeString, icu::UnicodeString>::iterator it = records.find(text);
+    if (it != records.end())
     {
-        return (records.find(text))->second;
+        return it->second;
     }
     return text;
 }

@@ -10,11 +10,11 @@
 
 template <>
 struct std::hash<icu::UnicodeString> {
-    const int32_t max_hash_length = 5;
+    const int32_t hash_length = 5;
 
     std::size_t operator()(icu::UnicodeString const& s) const noexcept
     {
-        return s.tempSubString(0, max_hash_length).hashCode();
+        return s.tempSubString(0, hash_length).hashCode();
     }
 };
 
